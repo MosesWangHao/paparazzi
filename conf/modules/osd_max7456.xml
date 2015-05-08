@@ -15,11 +15,11 @@
     include $(CFG_SHARED)/spi_master.makefile
     </raw>
     <file name="max7456.c" />
-    <define name="USE_SPI" value="1" />
-    <define name="USE_SPI2" value="1" />
-    <define name="MAX7456_SPI_DEV" value="spi2"/>
-    <define name="USE_SPI_SLAVE2" value="1"/>
-    <define name="MAX7456_SLAVE_IDX" value="2"/>
+    <define name="USE_SPI1" value="1" />
+    <!--define name="USE_SPI2" value="1" /-->
+    <define name="MAX7456_SPI_DEV" value="spi1"/>
+    <define name="USE_SPI_SLAVE1" value="1"/>
+    <define name="MAX7456_SLAVE_IDX" value="1"/>
     <define name="USE_PAL_FOR_OSD_VIDEO" value="1" />
     <define name="OSD_USE_EXTERNAL_SPRINTF" value="0" />
   </makefile>

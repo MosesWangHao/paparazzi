@@ -19,14 +19,14 @@ $(TARGET).LDSCRIPT=$(SRC_ARCH)/lisa-mx.ld
 
 # default flash mode is via usb dfu bootloader (luftboot)
 # other possibilities: DFU-UTIL, SWD, JTAG_BMP, STLINK, SERIAL
-FLASH_MODE ?= SWD
+FLASH_MODE ?= DFU
 
 HAS_LUFTBOOT ?= 0
 ifeq (,$(findstring $(HAS_LUFTBOOT),0 FALSE))
 $(TARGET).CFLAGS+=-DLUFTBOOT
 $(TARGET).LDFLAGS+=-Wl,-Ttext=0x8004000
 DFU_ADDR = 0x8004000
-DFU_PRODUCT = Lisa/Lia
+DFU_PRODUCT = any
 endif
 
 

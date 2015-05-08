@@ -43,6 +43,7 @@
 #define GPS_FIX_3D   0x03
 
 #define GpsFixValid() (gps.fix == GPS_FIX_3D)
+#define GpsPosValid() (gps.pacc < 250)
 
 
 #ifndef GPS_NB_CHANNELS
