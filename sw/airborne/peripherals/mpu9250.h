@@ -62,7 +62,6 @@ enum Mpu9250ConfStatus {
   MPU9250_CONF_DONE
 };
 
-
 /// Configuration function prototype
 typedef void (*Mpu9250ConfigSet)(void *mpu, uint8_t _reg, uint8_t _val);
 
