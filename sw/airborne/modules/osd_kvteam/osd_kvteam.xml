@@ -1,0 +1,28 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="osd_kvteam" dir="osd_kvteam">
+  <doc>
+    <description>OSD based KVTEAM and MAX7456 driver(SPI).</description>
+  </doc>
+  <header>
+    <file name="osd_kvteam.h"/>
+  </header>
+  <init fun="osdkvteam_init()"/>
+  <periodic fun="osdkvteam_periodic()" freq="20" autorun="TRUE"/>
+  <event fun="osdkvteam_event()"/>
+  <makefile target="ap">
+    <raw>
+    include $(CFG_SHARED)/spi_master.makefile
+    </raw>
+    <file name="osd_kvteam.c" />
+    <define name="USE_SPI1" value="1" />
+    <!--define name="USE_SPI2" value="1" /-->
+    <define name="MAX7456_SPI_DEV" value="spi1"/>
+    <define name="USE_SPI_SLAVE1" value="1"/>
+    <define name="MAX7456_SLAVE_IDX" value="1"/>
+    <define name="USE_PAL_FOR_OSD_VIDEO" value="1" />
+    <define name="OSD_USE_EXTERNAL_SPRINTF" value="0" />
+  </makefile>
+</module>
+
+
