@@ -1,9 +1,39 @@
+/*
+ * Copyright (C) 2015 Moses
+ *
+ * This file is part of paparazzi.
+ *
+ * paparazzi is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * paparazzi is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with paparazzi; see the file COPYING.  If not, write to
+ * the Free Software Foundation, 59 Temple Place - Suite 330,
+ * Boston, MA 02111-1307, USA.
+ */
+
+
+/**
+ * @file modules/osd_kvteam/osd_kvteam.c
+ * Maxim MAX7456 single-channel monochrome on-screen display driver.
+ * Port part from kvteam
+ */
+
+
 #include "std.h"
 #include "string.h"
+#include "stdlib.h"
 #include "osd_kvconfig.h"
 #include "osd_kvscreen.h"
 
-//================================ Display Settings ========================================
+//================================ Display Settings =====================================
 
 // POSITION OF EACH CHARACTER OR LOGO IN THE MAX7456
 const char speedUnitAdd[2]       = { 0xa5,0xa6} ; // [0][0] and [0][1] = Km/h   [1][0] and [1][1] = Mph
@@ -25,7 +55,7 @@ const unsigned char GPS_distanceToHomeAdd[2] ={0xbb,0xb9};
 const unsigned char MwGPSAltPositionAdd[2]   ={0xa7,0xa8};
 const char KVTeamVersionPosition = 35;
 
-//========================For Intro==================================
+//========================For Intro======================================================
 const char message0[]  = "KV_OSD_TEAM_R370";
 const char message1[]  = "VIDEO SIGNAL NTSC";
 const char message2[]  = "VIDEO SIGNAL PAL ";
@@ -37,7 +67,6 @@ void MAX7456_WriteString(const char *string, int Adresse);
 void MAX7456_WriteString_P(const char *string, int Adresse);
 uint16_t getPosition(uint8_t pos);
 uint8_t Settings[EEPROM_SETTINGS];
-
 
 
 extern char screen[];
@@ -127,105 +156,49 @@ char *formatTime(uint16_t val, char *str, uint8_t hhmmss) {
 uint8_t FindNull(void)
 {
   uint8_t xx;
-  for(xx=0;screenBuffer[xx]!=0;xx++)
-    ;
+  for(xx=0;(screenBuffer[xx]!=0)&&(xx<250);xx++);
   return xx;
 }
 
-void displayTemperature(int16_t temperature)        // WILL WORK ONLY WITH V1.2
+void displayTemperature(int16_t temperature)
 {
   int xxx;
   if (Settings[S_UNITSYSTEM])
-    xxx = temperature*1.8+32;       //Fahrenheit conversion for imperial system.
+    xxx = temperature*1.8+32;   //Fahrenheit conversion for imperial system.
   else
     xxx = temperature;
-
-  //if(xxx > temperMAX)
-  //  temperMAX = xxx;
-
-  itoa(xxx,screenBuffer,10);	//sprintf(screenBuffer, "%d", xxx);
-  uint8_t xx = FindNull();   // find the NULL
+  //sprintf(screenBuffer, "%d", xxx);
+  itoa(xxx,screenBuffer,10);	
+  uint8_t xx = FindNull();      // find the NULL
   screenBuffer[xx++]=temperatureUnitAdd[Settings[S_UNITSYSTEM]];
-  screenBuffer[xx]=0;  // Restore the NULL
+  screenBuffer[xx]=0;           // Restore the NULL
   MAX7456_WriteString(screenBuffer,getPosition(temperaturePosition));
 }
 
-void displayMode(void)
-{
-  //if(Settings[S_MODEICON])
-		{
-    // Put sensor symbold (was displaySensors)
-    //screenBuffer[0] = (MwSensorPresent&ACCELEROMETER) ? SYM_ACC : ' ';
-    //screenBuffer[1] = (MwSensorPresent&BAROMETER) ? SYM_BAR : ' ';
-    //screenBuffer[2] = (MwSensorPresent&MAGNETOMETER) ? SYM_MAG : ' ';
-    //screenBuffer[3] = (MwSensorPresent&GPSSENSOR) ? SYM_GPS : ' ';
-    screenBuffer[0] = SYM_ACC;
-    screenBuffer[1] = SYM_BAR;
-    screenBuffer[2] = SYM_MAG;
-    screenBuffer[3] = SYM_GPS;
-  
-    //if(MwSensorActive&mode_stable)
-    {
-      screenBuffer[4]=SYM_STABLE;
-      screenBuffer[5]=SYM_STABLE1;
-    }
-    //else
-    //{
-    //  screenBuffer[4]=SYM_ACRO;
-    //  screenBuffer[5]=SYM_ACRO1;
-    //}
-    screenBuffer[6]=' ';
-    //if(MwSensorActive&mode_gpshome)
-      screenBuffer[7]=SYM_G_HOME;
-    //else if(MwSensorActive&mode_gpshold)
-    //  screenBuffer[7]=SYM_HOLD;
-    //else if(GPS_fix)
-    //  screenBuffer[7]=SYM_3DFIX;
-    //else
-    //  screenBuffer[7]=' ';
-  
-    screenBuffer[8]=0;
-    MAX7456_WriteString(screenBuffer,getPosition(sensorPosition));
-  
-    // Put ON indicator under sensor symbol
-    //screenBuffer[0] = (MwSensorActive&mode_stable) ? SYM_CHECK : ' ';
-    //screenBuffer[1] = (MwSensorActive&mode_baro) ? SYM_CHECK : ' ';
-    //screenBuffer[2] = (MwSensorActive&mode_mag) ? SYM_CHECK : ' ';
-    //screenBuffer[3] = (MwSensorActive&(mode_gpshome|mode_gpshold)) ? SYM_CHECK : ' ';
-    //screenBuffer[0] = (MwSensorActive&mode_stable) ? SYM_CHECK : ' ';
-    screenBuffer[1] = SYM_CHECK;
-    screenBuffer[2] = SYM_CHECK;
-    screenBuffer[3] = SYM_CHECK;
-    screenBuffer[4] = 0;
-    MAX7456_WriteString(screenBuffer,getPosition(sensorPosition)+LINE);
-    }
-}
+
 
 void displayArmed(uint16_t status)
 {
-	if(status == 0) {
-		screenBuffer[0] = 0;
+  if(status == 0) {
+    screenBuffer[0] = 0;
     MAX7456_WriteString_P(screenBuffer, getPosition(motorArmedPosition));
-	}
-	else if(status == 1) {
-		MAX7456_WriteString_P(disarmed_text, getPosition(motorArmedPosition));
-	}
-	else
-		MAX7456_WriteString_P(armed_text, getPosition(motorArmedPosition));
+  }
+  else if(status == 1) {
+    MAX7456_WriteString_P(disarmed_text, getPosition(motorArmedPosition));
+  }
+  else
+    MAX7456_WriteString_P(armed_text, getPosition(motorArmedPosition));
 }
 
 void displayCallsign(void)
 {
-  uint16_t position = getPosition(callSignPosition);
-  //if(Settings[S_DISPLAY_CS])
-	{
-      for(int X=0; X<10; X++) {
-          screenBuffer[X] = (char)(Settings[S_CS0 + X]);
-     }   
-       screenBuffer[10] = 0;
-       MAX7456_WriteString(screenBuffer, getPosition(callSignPosition)); 
-  }
+  for(int X=0; X<10; X++) {
+    screenBuffer[X] = (char)(Settings[S_CS0 + X]);
+  }   
+  screenBuffer[10] = 0;
+  MAX7456_WriteString(screenBuffer, getPosition(callSignPosition)); 
 }
+
 void displayHorizon(int rollAngle, int pitchAngle)
 {
   //if(!fieldIsVisible(horizonPosition))
@@ -274,7 +247,6 @@ void displayHorizon(int rollAngle, int pitchAngle)
 
 void displayVoltage(int voltage)
 {
-
   ItoaPadded(voltage, screenBuffer, 4, 3);
   screenBuffer[4] = SYM_VOLT;
   screenBuffer[5] = 0;
@@ -295,7 +267,7 @@ void displayVoltage(int voltage)
     else if (voltage < BATTEV4) screenBuffer[0]=SYM_BATT_3;
     else if (voltage < BATTEV5) screenBuffer[0]=SYM_BATT_4;
     else if (voltage < BATTEV6) screenBuffer[0]=SYM_BATT_5;
-    else screenBuffer[0]=SYM_BATT_FULL;                              // Max charge icon
+    else screenBuffer[0]=SYM_BATT_FULL;  // Max charge icon
   }
   else {
     screenBuffer[0]=SYM_MAIN_BATT;
@@ -303,22 +275,21 @@ void displayVoltage(int voltage)
   screenBuffer[1]=0;
   MAX7456_WriteString(screenBuffer,getPosition(voltagePosition)-1);
 
-//  if (Settings[S_VIDVOLTAGE]){
-//    ItoaPadded(vidvoltage, screenBuffer, 4, 3);
-//    screenBuffer[4]=SYM_VOLT;
-//    screenBuffer[5]=0;
-//    MAX7456_WriteString(screenBuffer,getPosition(vidvoltagePosition));
-//    screenBuffer[0]=SYM_VID_BAT;
-//    screenBuffer[1]=0;
-//    MAX7456_WriteString(screenBuffer,getPosition(vidvoltagePosition)-1);
-//  }
+  //ItoaPadded(vidvoltage, screenBuffer, 4, 3);
+  //screenBuffer[4]=SYM_VOLT;
+  //screenBuffer[5]=0;
+  //MAX7456_WriteString(screenBuffer,getPosition(vidvoltagePosition));
+  //screenBuffer[0]=SYM_VID_BAT;
+  //screenBuffer[1]=0;
+  //MAX7456_WriteString(screenBuffer,getPosition(vidvoltagePosition)-1);
+ 
 }
 
 void displayCurrentThrottle(uint16_t throttlepercent)
 {
-
-//  if (MwRcData[THROTTLESTICK] > HighT) HighT = MwRcData[THROTTLESTICK] -5;
-//  if (MwRcData[THROTTLESTICK] < LowT) LowT = MwRcData[THROTTLESTICK];      // Calibrate high and low throttle settings  --defaults set in GlobalVariables.h 1100-1900
+  //  if (MwRcData[THROTTLESTICK] > HighT) HighT = MwRcData[THROTTLESTICK] -5;
+  //  if (MwRcData[THROTTLESTICK] < LowT) LowT = MwRcData[THROTTLESTICK];      
+  // Calibrate high and low throttle settings  --defaults set in GlobalVariables.h 1100-1900
   screenBuffer[0]=SYM_THR;
   screenBuffer[1]=0;
   MAX7456_WriteString(screenBuffer,getPosition(CurrentThrottlePosition));
@@ -367,7 +338,6 @@ void displayTime(int flyTime)
 
 void displayAmperage(int amperage)
 {
-  // Real Ampere is ampere / 10
   ItoaPadded(amperage, screenBuffer, 4, 3);     // 99.9 ampere max!
   screenBuffer[4] = SYM_AMP;
   screenBuffer[5] = 0;
@@ -394,23 +364,12 @@ void displayRSSI(int rssi)
 
 void displayHeading(int MwHeading)
 {
- //if (Settings[S_SHOWHEADING]) 
-	 {  
-      int16_t heading = MwHeading;
-      if (1 /*Settings[S_HEADING360]*/) {
-        if(heading < 0)
-          heading += 360;
-        ItoaPadded(heading,screenBuffer,3,0);
-        screenBuffer[3]=SYM_DEGREES;
-        screenBuffer[4]=0;
-      }
-      else {
-        ItoaPadded(heading,screenBuffer,4,0);
-        screenBuffer[4]=SYM_DEGREES;
-        screenBuffer[5]=0;
-      }
-      MAX7456_WriteString(screenBuffer,getPosition(MwHeadingPosition));
-  }  
+  if(MwHeading < 0)
+    MwHeading += 360;
+  ItoaPadded(MwHeading,screenBuffer,3,0);
+  screenBuffer[3]=SYM_DEGREES;
+  screenBuffer[4]=0;
+  MAX7456_WriteString(screenBuffer,getPosition(MwHeadingPosition));
 }
 
 void displayHeadingGraph(int MwHeading)
@@ -426,7 +385,6 @@ void displayHeadingGraph(int MwHeading)
 
 void displayIntro(void)
 {
-
   MAX7456_WriteString_P(message0, KVTeamVersionPosition);
 
   if (Settings[S_VIDEOSIGNALTYPE])
@@ -437,56 +395,32 @@ void displayIntro(void)
   MAX7456_WriteString_P(MultiWiiLogoL1Add, KVTeamVersionPosition+120);
   MAX7456_WriteString_P(MultiWiiLogoL2Add, KVTeamVersionPosition+120+LINE);
   MAX7456_WriteString_P(MultiWiiLogoL3Add, KVTeamVersionPosition+120+LINE+LINE);
-
   MAX7456_WriteString_P(message5, KVTeamVersionPosition+120+LINE+LINE+LINE);
-	sprintf((char*)(screenBuffer),"%d", 23/*VER*/);
+  itoa(10,screenBuffer,10); //sprintf((char*)(screenBuffer),"%d", 01/*VER*/);
   MAX7456_WriteString(screenBuffer,KVTeamVersionPosition+131+LINE+LINE+LINE);
-
-  //MAX7456_WriteString_P(message6, KVTeamVersionPosition+120+LINE+LINE+LINE+LINE+LINE);
-  //MAX7456_WriteString_P(message7, KVTeamVersionPosition+125+LINE+LINE+LINE+LINE+LINE+LINE);
-  //MAX7456_WriteString_P(message8, KVTeamVersionPosition+125+LINE+LINE+LINE+LINE+LINE+LINE+LINE);
-  //MAX7456_WriteString_P(message9, KVTeamVersionPosition+120+LINE+LINE+LINE+LINE+LINE+LINE+LINE+LINE);
 }
 
 void displayGPSPosition(int32_t GPS_latitude, int32_t GPS_longitude, int32_t GPS_altitude)
 {
-  //if(!GPS_fix)
-  //  return;
 
-  //if(Settings[S_COORDINATES])
-	{
-    //if(fieldIsVisible(MwGPSLatPosition)) 
-		{
-      screenBuffer[0] = SYM_LAT;
-      FormatGPSCoord(GPS_latitude,screenBuffer+1,3,'N','S');
-      //if(!Settings[S_GPSCOORDTOP])
-      //  MAX7456_WriteString(screenBuffer,getPosition(MwGPSLatPosition));
-      //else
-        MAX7456_WriteString(screenBuffer,getPosition(MwGPSLatPositionTop));  
-    }
+  screenBuffer[0] = SYM_LAT;
+  FormatGPSCoord(GPS_latitude,screenBuffer+1,3,'N','S');
+  //MAX7456_WriteString(screenBuffer,getPosition(MwGPSLatPosition));
+  MAX7456_WriteString(screenBuffer,getPosition(MwGPSLatPositionTop));  
 
-    //if(fieldIsVisible(MwGPSLatPosition)) 
-		{
-      screenBuffer[0] = SYM_LON;
-      FormatGPSCoord(GPS_longitude,screenBuffer+1,3,'E','W');
-      //if(!Settings[S_GPSCOORDTOP])
-      //  MAX7456_WriteString(screenBuffer,getPosition(MwGPSLonPosition));
-      //else
-        MAX7456_WriteString(screenBuffer,getPosition(MwGPSLonPositionTop));          
-    }
-  }
-  
-  //if(Settings[S_GPSALTITUDE])
-		{
-      screenBuffer[0] = MwGPSAltPositionAdd[Settings[S_UNITSYSTEM]];
-      uint16_t xx;
-      if(Settings[S_UNITSYSTEM])
-        xx = GPS_altitude * 3.2808; // Mt to Feet
-      else
-        xx = GPS_altitude;          // Mt
-      itoa(xx,screenBuffer+1,10); //sprintf((char*)(screenBuffer+1),"%d", xx);
-      MAX7456_WriteString(screenBuffer,getPosition(MwGPSAltPosition));
-      }
+  screenBuffer[0] = SYM_LON;
+  FormatGPSCoord(GPS_longitude,screenBuffer+1,3,'E','W');
+  //MAX7456_WriteString(screenBuffer,getPosition(MwGPSLonPosition));
+  MAX7456_WriteString(screenBuffer,getPosition(MwGPSLonPositionTop));          
+
+  screenBuffer[0] = MwGPSAltPositionAdd[Settings[S_UNITSYSTEM]];
+  uint16_t xx;
+  if(Settings[S_UNITSYSTEM])
+    xx = GPS_altitude * 3.2808; // Mt to Feet
+  else
+    xx = GPS_altitude;          // Mt
+  itoa(xx,screenBuffer+1,10); //sprintf((char*)(screenBuffer+1),"%d", xx);
+  MAX7456_WriteString(screenBuffer,getPosition(MwGPSAltPosition));
 }
 
 void displayNumberOfSat(int GPS_numSat)
@@ -494,18 +428,13 @@ void displayNumberOfSat(int GPS_numSat)
   screenBuffer[0] = SYM_SAT_L;
   screenBuffer[1] = SYM_SAT_R;
   itoa(GPS_numSat,screenBuffer+2,10);	//sprintf((char*)(screenBuffer+2),"%d", GPS_numSat);
-  if(!Settings[S_GPSCOORDTOP])
-    MAX7456_WriteString(screenBuffer,getPosition(GPS_numSatPosition));
-  else 
-    MAX7456_WriteString(screenBuffer,getPosition(GPS_numSatPositionTop)); 
+  MAX7456_WriteString(screenBuffer,getPosition(GPS_numSatPosition));
+  //MAX7456_WriteString(screenBuffer,getPosition(GPS_numSatPositionTop)); 
 }
 
 
 void displayGPS_speed(int GPS_speed)
 {
-
-  //if(!GPS_fix) return;
-  //if(!armed) GPS_speed=0;
 
   int xx;
   if(!Settings[S_UNITSYSTEM])
@@ -513,9 +442,6 @@ void displayGPS_speed(int GPS_speed)
   else
     xx = GPS_speed * 0.02236932;      // (0.036*0.62137)  From MWii cm/sec to mph
 
-  //if(xx > speedMAX)
-  //  speedMAX = xx;
-    
   screenBuffer[0]=speedUnitAdd[Settings[S_UNITSYSTEM]];
   itoa(xx,screenBuffer+1,10); //sprintf((char*)(screenBuffer+1),"%d", xx);
   MAX7456_WriteString(screenBuffer,getPosition(speedPosition));
@@ -528,9 +454,6 @@ void displayAltitude(int MwAltitude)
     altitude = MwAltitude*3.2808;    // cm to feet
   else
     altitude = MwAltitude;
-
-  //if(armed && allSec>5 && altitude > altitudeMAX)
-  //  altitudeMAX = altitude;
 
   screenBuffer[0]=MwAltitudeAdd[Settings[S_UNITSYSTEM]];
   itoa(altitude,screenBuffer+1,10); //sprintf((char*)(screenBuffer+1),"%d", altitude);
@@ -558,23 +481,16 @@ void displayClimbRate(int MwVario)
     vario = MwVario / 100;            // cm/sec ----> mt/sec
 	
   itoa(vario, screenBuffer+2, 10); //sprintf((char*)(screenBuffer+2),"%d", vario);
-
   MAX7456_WriteString(screenBuffer,getPosition(MwClimbRatePosition));
 }
 
 void displayDistanceToHome(int GPS_distanceToHome)
 {
-  //if(!GPS_fix)
-  //  return;
-
   int16_t dist;
   if(Settings[S_UNITSYSTEM])
     dist = GPS_distanceToHome * 3.2808;           // mt to feet
   else
     dist = GPS_distanceToHome;                    // Mt
-
-  //if(dist > distanceMAX)
-  //  distanceMAX = dist;
 
   screenBuffer[0] = GPS_distanceToHomeAdd[Settings[S_UNITSYSTEM]];
   itoa(dist, screenBuffer+1, 10); //sprintf((char*)(screenBuffer+1),"%d", dist);
@@ -582,20 +498,13 @@ void displayDistanceToHome(int GPS_distanceToHome)
 }
 
 void displayAngleToHome(int GPS_directionToHome, int GPS_distanceToHome)
-{
-  //if(!GPS_fix)
-  //    return;
-      
-  //if(Settings[S_ANGLETOHOME])
-	{
-    if(GPS_distanceToHome <= 2 /*&& Blink2hz*/)
-      return;
-  
-    ItoaPadded(GPS_directionToHome,screenBuffer,3,0);
-    screenBuffer[3] = SYM_DEGREES;
-    screenBuffer[4] = 0;
-    MAX7456_WriteString(screenBuffer,getPosition(GPS_angleToHomePosition));
-    }
+{   
+  if(GPS_distanceToHome <= 2)
+    return;
+  ItoaPadded(GPS_directionToHome,screenBuffer,3,0);
+  screenBuffer[3] = SYM_DEGREES;
+  screenBuffer[4] = 0;
+  MAX7456_WriteString(screenBuffer,getPosition(GPS_angleToHomePosition));
 }
 
 void displayDirectionToHome(int GPS_directionToHome, int GPS_distanceToHome, int MwHeading)
@@ -654,14 +563,13 @@ const uint16_t screenPosition[] = {
 uint16_t getPosition(uint8_t pos) {
   uint16_t val = (uint16_t)(screenPosition[pos]);
   uint16_t ret = val&POS_MASK;
-
   if(1 /*Settings[S_VIDEOSIGNALTYPE]*/) {
     ret += LINE * ((val >> PAL_SHFT) & PAL_MASK);
   }
-
   return ret;
 }
 
+/*
 uint8_t SfieldIsVisible(uint8_t pos) {
   uint16_t val = (uint16_t)(screenPosition[pos]);
   switch(val & DISPLAY_MASK) {
@@ -676,9 +584,7 @@ uint8_t SfieldIsVisible(uint8_t pos) {
     default:
     return 0;
   }
-}
-
-
+}*/
 
 // Copy string from ram into screen buffer
 void MAX7456_WriteString(const char *string, int Adresse)
@@ -699,6 +605,56 @@ void MAX7456_WriteString_P(const char *string, int Adresse)
   {
     screen[Adresse++] = c;
   }
+}
+
+//NOT FINISH
+void displayMode(void)
+{
+    // Put sensor symbold (was displaySensors)
+    //screenBuffer[0] = (MwSensorPresent&ACCELEROMETER) ? SYM_ACC : ' ';
+    //screenBuffer[1] = (MwSensorPresent&BAROMETER) ? SYM_BAR : ' ';
+    //screenBuffer[2] = (MwSensorPresent&MAGNETOMETER) ? SYM_MAG : ' ';
+    //screenBuffer[3] = (MwSensorPresent&GPSSENSOR) ? SYM_GPS : ' ';
+    screenBuffer[0] = SYM_ACC;
+    screenBuffer[1] = SYM_BAR;
+    screenBuffer[2] = SYM_MAG;
+    screenBuffer[3] = SYM_GPS;
+  
+    //if(MwSensorActive&mode_stable)
+    {
+      screenBuffer[4]=SYM_STABLE;
+      screenBuffer[5]=SYM_STABLE1;
+    }
+    //else
+    //{
+    //  screenBuffer[4]=SYM_ACRO;
+    //  screenBuffer[5]=SYM_ACRO1;
+    //}
+    screenBuffer[6]=' ';
+    //if(MwSensorActive&mode_gpshome)
+      screenBuffer[7]=SYM_G_HOME;
+    //else if(MwSensorActive&mode_gpshold)
+    //  screenBuffer[7]=SYM_HOLD;
+    //else if(GPS_fix)
+    //  screenBuffer[7]=SYM_3DFIX;
+    //else
+    //  screenBuffer[7]=' ';
+  
+    screenBuffer[8]=0;
+    MAX7456_WriteString(screenBuffer,getPosition(sensorPosition));
+  
+    // Put ON indicator under sensor symbol
+    //screenBuffer[0] = (MwSensorActive&mode_stable) ? SYM_CHECK : ' ';
+    //screenBuffer[1] = (MwSensorActive&mode_baro) ? SYM_CHECK : ' ';
+    //screenBuffer[2] = (MwSensorActive&mode_mag) ? SYM_CHECK : ' ';
+    //screenBuffer[3] = (MwSensorActive&(mode_gpshome|mode_gpshold)) ? SYM_CHECK : ' ';
+    //screenBuffer[0] = (MwSensorActive&mode_stable) ? SYM_CHECK : ' ';
+    screenBuffer[1] = SYM_CHECK;
+    screenBuffer[2] = SYM_CHECK;
+    screenBuffer[3] = SYM_CHECK;
+    screenBuffer[4] = 0;
+    MAX7456_WriteString(screenBuffer,getPosition(sensorPosition)+LINE);
+
 }
 
 

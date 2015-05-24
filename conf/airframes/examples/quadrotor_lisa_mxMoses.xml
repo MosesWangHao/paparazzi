@@ -56,7 +56,7 @@
 
   <modules>
     <load name="geo_mag.xml"/>
-    <load name="osd_max7456.xml">
+    <load name="osd_kvteam.xml">
         <define name="MAX7456_SPI_DEV" value="spi1"/>
         <define name="MAX7456_SLAVE_IDX" value="1"/>
     </load>

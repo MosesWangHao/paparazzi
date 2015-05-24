@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Chris
+ * Copyright (C) 2015 Moses
  *
  * This file is part of paparazzi.
  *
@@ -17,7 +17,6 @@
  * along with paparazzi; see the file COPYING.  If not, write to
  * the Free Software Foundation, 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
- *
  */
 
 #ifndef OSD_KVTEAM_H
@@ -28,7 +27,6 @@
 extern void osdkvteam_init(void);
 extern void osdkvteam_periodic(void);
 extern void osdkvteam_event(void);
-
 extern uint8_t osd_enable;
 
 
