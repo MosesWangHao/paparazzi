@@ -5,12 +5,16 @@
 #define OSD_VM0_REG     0x00
 #define OSD_VM1_REG     0x01
 #define OSD_DMM_REG     0x04
-#define OSD_DMAH_REG      0x05
-#define OSD_DMAL_REG      0x06
-#define OSD_DMDI_REG      0x07
-#define OSD_OSDBL_REG     0x6C
-#define OSD_OSDBL_REG_R     0xEC
-#define OSD_STAT_REG      0xA0
+#define OSD_DMAH_REG    0x05
+#define OSD_DMAL_REG    0x06
+#define OSD_DMDI_REG    0x07
+#define OSD_CMM_REG     0x08
+#define OSD_CMAH_REG    0x09
+#define OSD_CMAL_REG    0x0A
+#define OSD_CMDI_REG    0x0B
+#define OSD_OSDBL_REG   0x6C
+#define OSD_OSDBL_REG_R 0xEC
+#define OSD_STAT_REG    0xA0
 
 //OSD BIT POSITIONS
 #define OSD_VIDEO_MODE_PAL    (1<<6)          // Default = NTSC

@@ -21,7 +21,7 @@
  */
 
 
-const unsigned char chars[] = 
+const unsigned char osdKVFonts[] = 
 	
 
 

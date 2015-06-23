@@ -55,21 +55,20 @@
 #define OSD_SCRREN_MAX      (480+1) //the last char must 0xff
 #define OSD_LINE_MAX        20
 
+//Fonts used to upgrade EEPROM of MAX7456
+extern const unsigned char osdKVFonts[];
 
-// Screen is the Screen buffer between program an MAX7456 that will be writen to the screen at 20hz
+//Screen buffer that will be writen to the screen at 20hz
 char screen[OSD_SCRREN_MAX];
-// ScreenBuffer is an intermietary buffer to created Strings to send to Screen buffer
+//ScreenBuffer(line) is an intermietary buffer to created Strings to send to Screen buffer 
 char screenBuffer[OSD_LINE_MAX];
-//uint16_t MAX_screen_size;
-
 
 struct spi_transaction max7456_trans;
 uint8_t osd_spi_tx_buffer[2];
 uint8_t osd_spi_rx_buffer[2];
 
-uint16_t osd_char_address = 0;
-char osd_string[OSD_STRING_SIZE];
-char osd_str_buf[OSD_STRING_SIZE];
+uint16_t osd_eeprom_address = 0;
+uint16_t eepromcount = 0;
 
 enum max7456_osd_status_codes {
   OSD_UNINIT,
@@ -83,6 +82,11 @@ enum max7456_osd_status_codes {
   OSD_S_REFRESH_SCREEN0,
   OSD_S_REFRESH_SCREEN1,
   OSD_S_REFRESH_SCREEN2,
+  OSD_FONT_UPDATE,
+  OSD_FONT_UPDATE0,
+  OSD_FONT_UPDATE1,
+  OSD_FONT_UPDATE2,
+  OSD_FONT_UPDATE3,
   OSD_FINISHED,
 };
 
@@ -110,11 +114,9 @@ void osdkvteam_init(void)
   max7456_trans.input_buf     = (uint8_t *)osd_spi_rx_buffer;
   max7456_trans.before_cb     = NULL;
   max7456_trans.after_cb      = NULL;
-
   osd_enable = 1;
   osd_enable_val = OSD_IMAGE_ENABLE;
   max7456_osd_status = OSD_UNINIT;
-
   return;
 }
 
@@ -124,7 +126,6 @@ void osdkvteam_periodic(void)
   static int16_t i = 0;
   //This code is executed always and checks if the "osd_enable" var has been changed by telemetry.
   //If yes then it commands a reset but this time turns on or off the osd overlay, not the video.
-  //Moses: still not sure how it work here? need to clear.
   if (max7456_osd_status == OSD_IDLE) {
     if (osd_enable > 1) {
       osd_enable = 1;
@@ -136,65 +137,79 @@ void osdkvteam_periodic(void)
   }
 
   //--------------------------------INITIALIZATION OF THE OSD-------------------------------------
-  if (max7456_osd_status == OSD_UNINIT)
-  {
+  if (max7456_osd_status == OSD_UNINIT) {
     //reset max7456
     max7456_trans.status = SPITransDone;
     max7456_trans.output_buf[0] = OSD_VM0_REG;
     //This operation needs at least 100us but when the periodic function will be invoked again
     //sufficient time will have elapsed even with at a periodic frequency of 1000 Hz
     max7456_trans.output_buf[1] = OSD_RESET;
-    max7456_osd_status = OSD_INIT1;
+    #ifdef KVFONT_UPDATE
+      max7456_osd_status = OSD_FONT_UPDATE;
+    #else
+      max7456_osd_status = OSD_INIT1;
+    #endif
     spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
   }
-  else if (max7456_osd_status == OSD_INIT2)
-  {
-    //Init MAX7456 after reset
-    //READ OSDBL register
+  else if(max7456_osd_status == OSD_FONT_UPDATE0) {    
+    //Updata EEPROM, need at least 1000/20=50ms*256 ~ 13s
+    if(eepromcount < 256) {
+      osd_eeprom_address = eepromcount;
+      max7456_trans.output_length = 2;
+      max7456_trans.input_length = 0;
+      max7456_trans.output_buf[0] = OSD_VM0_REG;
+      max7456_trans.output_buf[1] = 0; 	     //reset value, display off
+      spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
+      max7456_osd_status = OSD_FONT_UPDATE1; //write eeprom one by one
+      eepromcount++; 
+    }
+    else
+      max7456_osd_status = OSD_INIT2;
+  } 
+  else if(max7456_osd_status == OSD_INIT2) {
+    //Init MAX7456 after reset READ OSDBL register
     max7456_trans.output_length = 1;
     max7456_trans.input_length = 1;
     max7456_trans.output_buf[0] = OSD_OSDBL_REG_R;
     max7456_osd_status = OSD_INIT3;
     spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
   }
-  else if (max7456_osd_status == OSD_IDLE && osd_enable > 0)
-  { // DRAW THE OSD SCREEN
-    
+  else if (max7456_osd_status == OSD_IDLE && osd_enable > 0) { 
+    // DRAW THE OSD SCREEN
+    //=============clean screen buffer=====================
     for(i = 0; i < OSD_SCRREN_MAX; i++)
     	screen[i] = 0;
     screen[OSD_SCRREN_MAX-1] = 0XFF;
 
-    
-
-    //draw Electrical
+    //=============Electrical==============================
     displayVoltage(electrical.vsupply);
     //displayAmperage(electrical.current/100);
     //displaypMeterSum(electrical.consumed);
 
-    //draw Heading
+    //=============Heading=================================
     BodyHeading = DegOfRad(stateGetNedToBodyEulers_f()->psi);
-    //displayHeading(BodyHeading);
+    displayHeading(BodyHeading);
     displayHeadingGraph(BodyHeading);
 
-    //Speed
+    //=============Speed===================================
     displayGPS_speed(state.h_speed_norm_f);
-    displayClimbRate(stateGetSpeedEnu_f()->z*100);   // NOT FIND RELATIVE FUNCTION
+    displayClimbRate(stateGetSpeedEnu_f()->z*100);
 
-    //alt
+    //=============Alt=====================================
     displayAltitude(GetPosAlt());
 
-    //gps
+    //=============GPS=====================================
     displayNumberOfSat(gps.num_sv);
     //displayGPSPosition(gps.lla_pos.lat, gps.lla_pos.lon, gps.lla_pos.alt);
 
-    //imu
+    //=============IMU=====================================
     displayHorizon(DegOfRad(stateGetNedToBodyEulers_f()->phi), DegOfRad(stateGetNedToBodyEulers_f()->theta));
     
-    //Home direction and distance
+    //=============Home direction and distance=============
     HomeDistance = sqrt(dist2_to_home);
     HomeHeading = DegOfRad(osdkvteam_get_heading_home());
     displayDistanceToHome(HomeDistance);
-    //displayAngleToHome(HomeHeading, HomeDistance);
+    displayAngleToHome(HomeHeading, HomeDistance);
     displayDirectionToHome(HomeHeading, HomeDistance, BodyHeading);
 
     //FOLLOW IS SOME DISPLAY INFO HAVEN'T FIND DATA SOURCE
@@ -207,32 +222,64 @@ void osdkvteam_periodic(void)
     //displayTemperature(??);
     //displayIntro();
 
-
     //TRIGGER THE SPI TRANSFERS. The rest of the spi transfers occur in the "max7456_event" function.
     max7456_trans.output_length = 2;
     max7456_trans.output_buf[0] = OSD_DMAH_REG;
     max7456_trans.output_buf[1] = 0;
     max7456_osd_status = OSD_S_REFRESH_SCREEN;
     spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
-
   }
-  else{}    //do nothing here
+  else{}
   return;
 }
 
 void osdkvteam_event(void)
 {
   static uint16_t x = 0;
-  if (max7456_trans.status == SPITransSuccess)
-  {
+  static uint16_t eeprom_bmpbitcount = 0; 
+  if (max7456_trans.status == SPITransSuccess) {
     max7456_trans.status = SPITransDone;
-    switch (max7456_osd_status)
-    {
+    switch (max7456_osd_status) {
+      case (OSD_FONT_UPDATE):
+        max7456_osd_status = OSD_FONT_UPDATE0;
+        break;
+      case (OSD_FONT_UPDATE1):
+        max7456_trans.output_length = 2;
+        max7456_trans.input_length = 0;
+        max7456_trans.output_buf[0] = OSD_CMAH_REG;
+        max7456_trans.output_buf[1] = osd_eeprom_address;
+        max7456_osd_status = OSD_FONT_UPDATE2;
+        eeprom_bmpbitcount = 0;
+        spi_submit(&(MAX7456_SPI_DEV), &max7456_trans); 
+        break; 
+      case (OSD_FONT_UPDATE2): //write 54byte for per char
+        max7456_trans.output_length = 2;
+        max7456_trans.input_length = 0;
+        if((eeprom_bmpbitcount&0x1) == 0) {
+           max7456_trans.output_buf[0] = OSD_CMAL_REG;
+           max7456_trans.output_buf[1] = eeprom_bmpbitcount/2;
+        }
+        else {
+           max7456_trans.output_buf[0] = OSD_CMDI_REG;
+           max7456_trans.output_buf[1] = *(osdKVFonts+osd_eeprom_address*64+eeprom_bmpbitcount/2);
+        }
+        eeprom_bmpbitcount++;
+        if(eeprom_bmpbitcount == 54*2)
+           max7456_osd_status = OSD_FONT_UPDATE3; 
+        spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
+        break;
+      case (OSD_FONT_UPDATE3):
+        max7456_trans.output_length = 2;
+        max7456_trans.input_length = 0;
+        max7456_trans.output_buf[0] = OSD_CMM_REG;
+        max7456_trans.output_buf[1] = 0xa0; //wirite to nvm array need at least 12ms
+        max7456_osd_status = OSD_FONT_UPDATE;
+        spi_submit(&(MAX7456_SPI_DEV), &max7456_trans); 
+        break;
       case (OSD_INIT1):
         max7456_osd_status = OSD_INIT2;
         break;
-      case (OSD_INIT3):
-        //Set OSD BLACK LEVEL
+      case (OSD_INIT3): //Set OSD BLACK LEVEL
         max7456_trans.output_length = 2;
         max7456_trans.input_length = 0;
         max7456_trans.output_buf[0] = OSD_OSDBL_REG;
@@ -240,10 +287,9 @@ void osdkvteam_event(void)
         max7456_osd_status = OSD_INIT4;
         spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
         break;
-      case (OSD_INIT4):
+      case (OSD_INIT4): //Set OSD PAL/NTSC mode and enable OSD
         max7456_trans.output_length = 2;
         max7456_trans.input_length = 0;
-        //Set OSD PAL/NTSC mode and enable OSD
         max7456_trans.output_buf[0] = OSD_VM0_REG;
         #if USE_PAL_FOR_OSD_VIDEO
         max7456_trans.output_buf[1] = OSD_VIDEO_MODE_PAL | osd_enable_val;
@@ -287,8 +333,7 @@ void osdkvteam_event(void)
           max7456_osd_status = OSD_FINISHED;
           spi_submit(&(MAX7456_SPI_DEV), &max7456_trans);
         }
-
-	/* Try send all data by DMA but failed
+	/*Not implement, try send all data by DMA but failed
         for(int i = 0; i < OSD_SCRREN_MAX-1; i++)
 		screen[i] = i&0xF;
         screen[9] = 0xff;
@@ -317,7 +362,7 @@ float osdkvteam_get_heading_home(void)
   struct FloatVect2 target={x,y};
   struct FloatVect2 pos_diff;
   VECT2_DIFF(pos_diff, target, *stateGetPositionEnu_f());
-  float heading_f = atan2f(pos_diff.x, pos_diff.y); //heading_f = ANGLE_BFP_OF_REAL(heading_f);
+  float heading_f = atan2f(pos_diff.x, pos_diff.y); 
   return heading_f;
 }
 

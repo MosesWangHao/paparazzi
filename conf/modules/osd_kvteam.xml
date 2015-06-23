@@ -1,5 +1,6 @@
 <!DOCTYPE module SYSTEM "module.dtd">
-
+<!-- Use KVFONT_UPDATE = 1 update font need a lot of time so just use it if you haven't right font in your MAX7456 EEPROM  -->
+<!-- Attention: if KVFONT_UPDATE==1 pls set periodic less than 20 because i haven't find a good way to ctl the write time-->
 <module name="osd_kvteam" dir="osd_kvteam">
   <doc>
     <description>OSD based KVTEAM and MAX7456 driver(SPI).</description>
@@ -16,11 +17,13 @@
     </raw>
     <file name="osd_kvteam.c" />
     <file name="osd_kvscreen.c" />
+    <file name="osd_font.c" />
     <define name="USE_SPI1" value="1" />
-    <!--define name="USE_SPI2" value="1" /-->
     <define name="MAX7456_SPI_DEV" value="spi1"/>
     <define name="USE_SPI_SLAVE1" value="1"/>
     <define name="MAX7456_SLAVE_IDX" value="1"/>
+
+    <define name="KVFONT_UPDATE" value="1"/>
     <!--define name="MAG_HEADING_AVAILABLE" value="0"/-->
     <define name="USE_PAL_FOR_OSD_VIDEO" value="1" />
   </makefile>
